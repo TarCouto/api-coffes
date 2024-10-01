@@ -1,0 +1,17 @@
+# Dependências do Node.js
+node_modules/
+
+# Arquivos de saída do TypeScript
+dist/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Vercel
+.vercel/
+
+# Outras pastas e arquivos que podem ser ignorados
+.DS_Store
+.env

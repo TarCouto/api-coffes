@@ -196,7 +196,7 @@ interface OrderInfo {
 
 
 const newOrderSchema = z.object({
-  cep: z.number().nonnegative().min(10000000, { message: 'CEP inválido' }), // Adicione uma validação para o formato correto do CEP
+  cep: z.number({ invalid_type_error: 'Informe o CEP' }), // Adicione uma validação para o formato correto do CEP
   street: z.string().min(1, 'Informe a rua'),
   number: z.string().min(1, 'Informe o número'),
   fullAddress: z.string().optional(), // Campo opcional
@@ -211,7 +211,7 @@ const newOrderSchema = z.object({
 // Tipo da ordem (OrderInfo)
 
 // Rota para receber os pedidos
-let orders: OrderInfo[] = []; // Armazenar ordens temporariamente em memória
+// Armazenar ordens temporariamente em memória
 
 const validateOrder = (req: Request, res: Response, next: Function): void => {
   try {

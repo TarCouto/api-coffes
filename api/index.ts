@@ -169,6 +169,7 @@ const coffees: Coffee[] = [
 
 // Rota para retornar os cafés
 app.get('/api/coffees', (req: Request, res: Response) => {
+  console.log('Requisição para /api/coffees recebida');
   res.json({ coffees });
 });
 

@@ -1,55 +1,40 @@
 import express, { Request, Response } from 'express';
 import { z } from 'zod';
 import cors from 'cors';
-import { Pool } from 'pg';
-
-const pool = new Pool({
-  connectionString: 'postgres://default:nzfsVMC7xr6b@ep-snowy-salad-a6gkoffw.us-west-2.aws.neon.tech:5432/verceldb?sslmode=require',
-});
+import { sql } from '@vercel/postgres';
 
 // Função para salvar um pedido no banco de dados
 const saveOrderToDB = async (order: OrderInfo) => {
   const query = `
-    INSERT INTO orders (cep, street, number, full_address, neighborhood, city, state, payment_method)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    INSERT INTO orders (cep, street, number, full_address, neighborhood, city, state, payment_method, created_at)
+    VALUES (${order.cep}, ${order.street}, ${order.number}, ${order.fullAddress}, ${order.neighborhood}, ${order.city}, ${order.state}, ${order.paymentMethod}, NOW())
     RETURNING id;
   `;
-  const values = [
-    order.cep,
-    order.street,
-    order.number,
-    order.fullAddress,
-    order.neighborhood,
-    order.city,
-    order.state,
-    order.paymentMethod,
-  ];
 
   try {
-    const result = await pool.query(query, values);
-    if (result.rows.length > 0) {
-      return result.rows[0].id; // Retorna o ID da ordem inserida
+    const { rows } = await sql`${query}`;
+    if (rows.length > 0) {
+      return rows[0].id; // Retorna o ID da ordem inserida
     } else {
       throw new Error('Nenhum ID retornado');
     }
   } catch (error) {
     if (error instanceof Error) {
-      console.error('Erro ao executar query:', error.message);
+      // Verifica se o erro é uma instância da classe Error
+      console.error('Erro ao salvar a ordem no banco de dados:', error.message);
     } else {
-      console.error('Erro desconhecido ao executar query:', error);
+      console.error('Erro desconhecido ao salvar a ordem no banco de dados:', error);
     }
     throw new Error('Erro ao salvar a ordem no banco de dados');
   }
+  
 };
 
-
-
-
+// Configurações de CORS
 const allowedOrigins = ['https://web-coffee-delivery.vercel.app', 'http://localhost:3000'];
 
-
 const app = express();
-app.use(express.json()); // Necessário para interpretar o corpo JSON
+app.use(express.json()); 
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -62,139 +47,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-interface Coffee {
-  id: string;
-  title: string;
-  description: string;
-  tags: string[];
-  price: number;
-  image: string;
-}
-
-// Dados dos cafés
-const coffees: Coffee[] = [
-  {
-    id: "0",
-    title: "Expresso Tradicional",
-    description: "O tradicional café feito com água quente e grãos moídos",
-    tags: ["tradicional"],
-    price: 9.90,
-    image: "/expresso.png"
-  },
-  {
-    id: "1",
-    title: "Expresso Americano",
-    description: "Expresso diluído, menos intenso que o tradicional",
-    tags: ["tradicional"],
-    price: 9.90,
-    image: "/americano.png"
-  },
-  {
-    id: "2",
-    title: "Expresso Cremoso",
-    description: "Café expresso tradicional com espuma cremosa",
-    tags: ["tradicional"],
-    price: 9.90,
-    image: "/expresso-cremoso.png"
-  },
-  {
-    id: "3",
-    title: "Expresso Gelado",
-    description: "Bebida preparada com café expresso e cubos de gelo",
-    tags: ["tradicional", "gelado"],
-    price: 9.90,
-    image: "/cafe-gelado.png"
-  },
-  {
-    id: "4",
-    title: "Café com Leite",
-    description: "Meio a meio de expresso tradicional com leite vaporizado",
-    tags: ["tradicional", "com leite"],
-    price: 9.90,
-    image: "/cafe-com-leite.png"
-  },
-  {
-    id: "5",
-    title: "Latte",
-    description: "Uma dose de café expresso com o dobro de leite e espuma cremosa",
-    tags: ["tradicional", "com leite"],
-    price: 9.90,
-    image: "/latte.png"
-  },
-  {
-    id: "6",
-    title: "Capuccino",
-    description: "Bebida com canela feita de doses iguais de café, leite e espuma",
-    tags: ["tradicional", "com leite"],
-    price: 9.90,
-    image: "/capuccino.png"
-  },
-  {
-    id: "7",
-    title: "Macchiato",
-    description: "Café expresso misturado com um pouco de leite quente e espuma",
-    tags: ["tradicional", "com leite"],
-    price: 9.90,
-    image: "/macchiato.png"
-  },
-  {
-    id: "8",
-    title: "Mocaccino",
-    description: "Café expresso misturado com um pouco de leite quente e espuma",
-    tags: ["tradicional", "com leite"],
-    price: 9.90,
-    image: "/mocaccino.png"
-  },
-  {
-    id: "9",
-    title: "Chocolate Quente",
-    description: "Bebida feita com chocolate dissolvido no leite quente e café",
-    tags: ["especial", "com leite"],
-    price: 9.90,
-    image: "/chocolate-quente.png"
-  },
-  {
-    id: "10",
-    title: "Cubano",
-    description: "Drink gelado de café expresso com rum, creme de leite e hortelã",
-    tags: ["especial", "alcoólico", "gelado"],
-    price: 9.90,
-    image: "/cubano.png"
-  },
-  {
-    id: "11",
-    title: "Havaiano",
-    description: "Bebida adocicada preparada com café e leite de coco",
-    tags: ["especial"],
-    price: 9.90,
-    image: "/havaiano.png"
-  },
-  {
-    id: "12",
-    title: "Árabe",
-    description: "Bebida preparada com grãos de café árabe e especiarias",
-    tags: ["especial"],
-    price: 9.90,
-    image: "/arabe.png"
-  },
-  {
-    id: "13",
-    title: "Irlandês",
-    description: "Bebida a base de café, uísque irlandês, açúcar e chantilly",
-    tags: ["especial", "alcoólico"],
-    price: 9.90,
-    image: "/irlandes.png"
-  }
-];
-
-// Rota para retornar os cafés
-app.get('/api/coffees', (req: Request, res: Response) => {
-  console.log('Requisição para /api/coffees recebida');
-  res.json({ coffees });
-});
-
-// Exporte o app para a Vercel
-
+// Definição de interface para os pedidos
 interface OrderInfo {
   cep: number;
   street: string;
@@ -206,74 +59,49 @@ interface OrderInfo {
   paymentMethod: 'credit' | 'debit' | 'cash';
 }
 
-
+// Validação com Zod
 const newOrderSchema = z.object({
-  cep: z.number({ invalid_type_error: 'Informe o CEP' }), // Adicione uma validação para o formato correto do CEP
+  cep: z.number({ invalid_type_error: 'Informe o CEP' }),
   street: z.string().min(1, 'Informe a rua'),
   number: z.string().min(1, 'Informe o número'),
-  fullAddress: z.string().optional(), // Campo opcional
+  fullAddress: z.string().optional(),
   neighborhood: z.string().min(1, 'Informe o bairro'),
   city: z.string().min(1, 'Informe a cidade'),
   state: z.string().min(1, 'Informe a UF'),
-  paymentMethod: z.enum(['credit', 'debit', 'cash'], {
-    invalid_type_error: 'Informe um método de pagamento válido',
-  }),
+  paymentMethod: z.enum(['credit', 'debit', 'cash'], { invalid_type_error: 'Informe um método de pagamento válido' }),
 });
 
-// Tipo da ordem (OrderInfo)
-
-// Rota para receber os pedidos
-// Armazenar ordens temporariamente em memória
-
+// Middleware para validar a ordem
 const validateOrder = (req: Request, res: Response, next: Function): void => {
   try {
-    // Valida o corpo da requisição e sobrescreve req.body com os dados validados
     req.body = newOrderSchema.parse(req.body);
-    next(); // Chama o próximo middleware ou rota se a validação for bem-sucedida
+    next();
   } catch (error) {
     if (error instanceof z.ZodError) {
-      // Retorna erro de validação e finaliza a resposta, sem retornar diretamente
       res.status(400).json({ errors: error.errors });
     } else {
-      // Retorna erro genérico se ocorrer algum problema diferente
       res.status(500).json({ error: 'Erro ao validar o pedido' });
     }
   }
 };
 
+// Rota para criar um pedido
 app.post('/api/orders', validateOrder, async (req: Request, res: Response) => {
   try {
-    const newOrder = {
-      ...req.body,
-      createdAt: new Date().toISOString(),
-    };
-
+    const newOrder = { ...req.body, createdAt: new Date().toISOString() };
     const orderId = await saveOrderToDB(newOrder);
-
     res.status(201).json({ message: 'Pedido criado com sucesso!', orderId });
   } catch (error) {
-    // Fazer narrowing para o tipo Error
-    if (error instanceof Error) {
-      console.error('Erro ao salvar a ordem:', error.message);
-      res.status(500).json({ error: 'Erro ao salvar a ordem no banco de dados' });
-    } else {
-      console.error('Erro desconhecido:', error);
-      res.status(500).json({ error: 'Erro desconhecido ao salvar a ordem' });
-    }
+    console.error('Erro ao salvar a ordem:', error);
+    res.status(500).json({ error: 'Erro ao salvar a ordem' });
   }
 });
 
-
-
-// Função para buscar uma ordem pelo ID no banco de dados
+// Função para buscar uma ordem pelo ID
 const getOrderById = async (orderId: number) => {
-  const query = `
-    SELECT * FROM orders WHERE id = $1;
-  `;
-
   try {
-    const result = await pool.query(query, [orderId]);
-    return result.rows[0]; // Retorna a ordem encontrada
+    const { rows } = await sql`SELECT * FROM orders WHERE id = ${orderId}`;
+    return rows[0]; // Retorna a ordem encontrada
   } catch (error) {
     throw new Error('Erro ao buscar a ordem no banco de dados');
   }
@@ -296,6 +124,5 @@ app.get('/api/orders/:id', async (req: Request, res: Response) => {
   }
 });
 
-
-
+// Exporta o app para a Vercel
 export default app;

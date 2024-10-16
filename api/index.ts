@@ -1,6 +1,42 @@
 import express, { Request, Response } from 'express';
+import { z } from 'zod';
+import cors from 'cors';
+import { Pool } from 'pg';
+
+const pool = new Pool({
+  connectionString: 'postgres://default:nzfsVMC7xr6b@ep-snowy-salad-a6gkoffw.us-west-2.aws.neon.tech:5432/verceldb?sslmode=require',
+});
+
+// Função para salvar um pedido no banco de dados
+const saveOrderToDB = async (order: OrderInfo) => {
+  const query = `
+    INSERT INTO orders (cep, street, number, full_address, neighborhood, city, state, payment_method)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    RETURNING id;
+  `;
+  const values = [
+    order.cep,
+    order.street,
+    order.number,
+    order.fullAddress,
+    order.neighborhood,
+    order.city,
+    order.state,
+    order.paymentMethod,
+  ];
+
+  try {
+    const result = await pool.query(query, values);
+    return result.rows[0].id; // Retorna o ID da ordem inserida
+  } catch (error) {
+    throw new Error('Erro ao salvar a ordem no banco de dados');
+  }
+};
+
 
 const app = express();
+app.use(express.json()); // Necessário para interpretar o corpo JSON
+app.use(cors()); 
 
 interface Coffee {
   id: string;
@@ -133,4 +169,66 @@ app.get('/api/coffees', (req: Request, res: Response) => {
 });
 
 // Exporte o app para a Vercel
+
+interface OrderInfo {
+  cep: number;
+  street: string;
+  number: string;
+  fullAddress?: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  paymentMethod: 'credit' | 'debit' | 'cash';
+}
+
+
+const newOrderSchema = z.object({
+  cep: z.number().nonnegative().min(10000000, { message: 'CEP inválido' }), // Adicione uma validação para o formato correto do CEP
+  street: z.string().min(1, 'Informe a rua'),
+  number: z.string().min(1, 'Informe o número'),
+  fullAddress: z.string().optional(), // Campo opcional
+  neighborhood: z.string().min(1, 'Informe o bairro'),
+  city: z.string().min(1, 'Informe a cidade'),
+  state: z.string().min(1, 'Informe a UF'),
+  paymentMethod: z.enum(['credit', 'debit', 'cash'], {
+    invalid_type_error: 'Informe um método de pagamento válido',
+  }),
+});
+
+// Tipo da ordem (OrderInfo)
+
+// Rota para receber os pedidos
+let orders: OrderInfo[] = []; // Armazenar ordens temporariamente em memória
+
+const validateOrder = (req: Request, res: Response, next: Function): void => {
+  try {
+    // Valida o corpo da requisição e sobrescreve req.body com os dados validados
+    req.body = newOrderSchema.parse(req.body);
+    next(); // Chama o próximo middleware ou rota se a validação for bem-sucedida
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      // Retorna erro de validação e finaliza a resposta, sem retornar diretamente
+      res.status(400).json({ errors: error.errors });
+    } else {
+      // Retorna erro genérico se ocorrer algum problema diferente
+      res.status(500).json({ error: 'Erro ao validar o pedido' });
+    }
+  }
+};
+
+app.post('/api/orders', validateOrder, async (req: Request, res: Response) => {
+  try {
+    const newOrder = {
+      ...req.body,
+      createdAt: new Date().toISOString(),
+    };
+
+    // Salvar a nova ordem no banco de dados
+    const orderId = await saveOrderToDB(newOrder);
+    res.status(201).json({ message: 'Pedido criado com sucesso!', orderId });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao salvar a ordem' });
+  }
+});
+
 export default app;

@@ -10,8 +10,8 @@ const pool = new Pool({
 // Função para salvar um pedido no banco de dados
 const saveOrderToDB = async (order: OrderInfo) => {
   const query = `
-    INSERT INTO orders (cep, street, number, full_address, neighborhood, city, state, payment_method)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    INSERT INTO orders (cep, street, number, full_address, neighborhood, city, state, payment_method, created_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     RETURNING id;
   `;
   const values = [
@@ -22,16 +22,22 @@ const saveOrderToDB = async (order: OrderInfo) => {
     order.neighborhood,
     order.city,
     order.state,
-    order.paymentMethod,
+    order.paymentMethod, // Não se esqueça de passar o campo createdAt também
   ];
 
   try {
     const result = await pool.query(query, values);
-    return result.rows[0].id; // Retorna o ID da ordem inserida
+    if (result.rows.length > 0) {
+      return result.rows[0].id; // Retorna o ID da ordem inserida
+    } else {
+      throw new Error('Falha ao salvar o pedido. Nenhum ID retornado.');
+    }
   } catch (error) {
+    console.error('Erro ao salvar a ordem no banco de dados:', error);
     throw new Error('Erro ao salvar a ordem no banco de dados');
   }
 };
+
 
 const allowedOrigins = ['https://web-coffee-delivery.vercel.app', 'http://localhost:3000'];
 
@@ -236,13 +242,16 @@ app.post('/api/orders', validateOrder, async (req: Request, res: Response) => {
       createdAt: new Date().toISOString(),
     };
 
-    // Salvar a nova ordem no banco de dados
+    // Salvar a nova ordem no banco de dados e recuperar o orderId
     const orderId = await saveOrderToDB(newOrder);
+
     res.status(201).json({ message: 'Pedido criado com sucesso!', orderId });
   } catch (error) {
+    console.error('Erro ao salvar a ordem:', error);
     res.status(500).json({ error: 'Erro ao salvar a ordem' });
   }
 });
+
 
 // Função para buscar uma ordem pelo ID no banco de dados
 const getOrderById = async (orderId: number) => {

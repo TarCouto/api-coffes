@@ -36,7 +36,11 @@ const saveOrderToDB = async (order: OrderInfo) => {
 
 const app = express();
 app.use(express.json()); // Necessário para interpretar o corpo JSON
-app.use(cors()); 
+app.use(cors({
+  origin: 'https://web-coffee-delivery-hkmjls80b-tarcisio-coutos-projects.vercel.app',
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 interface Coffee {
   id: string;

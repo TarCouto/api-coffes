@@ -33,11 +33,19 @@ const saveOrderToDB = async (order: OrderInfo) => {
   }
 };
 
+const allowedOrigins = ['https://web-coffee-delivery.vercel.app', 'http://localhost:3000'];
+
 
 const app = express();
 app.use(express.json()); // Necessário para interpretar o corpo JSON
 app.use(cors({
-  origin: 'https://web-coffee-delivery-hkmjls80b-tarcisio-coutos-projects.vercel.app',
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));

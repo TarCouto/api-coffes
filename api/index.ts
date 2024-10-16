@@ -231,4 +231,37 @@ app.post('/api/orders', validateOrder, async (req: Request, res: Response) => {
   }
 });
 
+// Função para buscar uma ordem pelo ID no banco de dados
+const getOrderById = async (orderId: number) => {
+  const query = `
+    SELECT * FROM orders WHERE id = $1;
+  `;
+
+  try {
+    const result = await pool.query(query, [orderId]);
+    return result.rows[0]; // Retorna a ordem encontrada
+  } catch (error) {
+    throw new Error('Erro ao buscar a ordem no banco de dados');
+  }
+};
+
+// Rota para buscar uma ordem pelo ID
+app.get('/api/orders/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  try {
+    const order = await getOrderById(Number(id));
+
+    if (!order) {
+      res.status(404).json({ message: 'Ordem não encontrada' });
+    } else {
+      res.status(200).json({ order });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar a ordem' });
+  }
+});
+
+
+
 export default app;

@@ -7,6 +7,16 @@ const pool = new Pool({
   connectionString: 'postgres://default:nzfsVMC7xr6b@ep-snowy-salad-a6gkoffw.us-west-2.aws.neon.tech:5432/verceldb?sslmode=require',
 });
 
+pool.connect((err, client, release) => {
+  if (err) {
+    console.error('Erro ao conectar ao banco de dados:', err.stack);
+  } else {
+    console.log('Conexão ao banco de dados bem-sucedida');
+    release();
+  }
+});
+
+
 // Função para salvar um pedido no banco de dados
 const saveOrderToDB = async (order: OrderInfo) => {
   const query = `
@@ -22,7 +32,8 @@ const saveOrderToDB = async (order: OrderInfo) => {
     order.neighborhood,
     order.city,
     order.state,
-    order.paymentMethod, // Não se esqueça de passar o campo createdAt também
+    order.paymentMethod,
+    order.createdAt // Não se esqueça de passar o campo createdAt também
   ];
 
   try {
@@ -190,6 +201,7 @@ app.get('/api/coffees', (req: Request, res: Response) => {
 // Exporte o app para a Vercel
 
 interface OrderInfo {
+  createdAt: any;
   cep: number;
   street: string;
   number: string;

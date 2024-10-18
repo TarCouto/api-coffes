@@ -7,12 +7,22 @@ import { sql } from '@vercel/postgres';
 const saveOrderToDB = async (order: OrderInfo) => {
   const query = `
     INSERT INTO orders (cep, street, number, full_address, neighborhood, city, state, payment_method, created_at)
-    VALUES (${order.cep}, ${order.street}, ${order.number}, ${order.fullAddress}, ${order.neighborhood}, ${order.city}, ${order.state}, ${order.paymentMethod}, NOW())
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
     RETURNING id;
   `;
 
   try {
-    const { rows } = await sql`${query}`;
+    const { rows } = await sql.query(query, [
+      order.cep,
+      order.street,
+      order.number,
+      order.fullAddress || null,
+      order.neighborhood,
+      order.city,
+      order.state,
+      order.paymentMethod
+    ]);
+
     if (rows.length > 0) {
       return rows[0].id; // Retorna o ID da ordem inserida
     } else {
@@ -20,15 +30,14 @@ const saveOrderToDB = async (order: OrderInfo) => {
     }
   } catch (error) {
     if (error instanceof Error) {
-      // Verifica se o erro é uma instância da classe Error
       console.error('Erro ao salvar a ordem no banco de dados:', error.message);
     } else {
       console.error('Erro desconhecido ao salvar a ordem no banco de dados:', error);
     }
     throw new Error('Erro ao salvar a ordem no banco de dados');
   }
-  
 };
+
 
 // Configurações de CORS
 const allowedOrigins = ['https://web-coffee-delivery.vercel.app', 'http://localhost:3000'];
@@ -78,7 +87,7 @@ const validateOrder = (req: Request, res: Response, next: Function): void => {
     next();
   } catch (error) {
     if (error instanceof z.ZodError) {
-      res.status(400).json({ errors: error.errors });
+      res.status(400).json({ errors: error.issues }); // Alterei para `error.issues`
     } else {
       res.status(500).json({ error: 'Erro ao validar o pedido' });
     }
@@ -101,11 +110,15 @@ app.post('/api/orders', validateOrder, async (req: Request, res: Response) => {
 const getOrderById = async (orderId: number) => {
   try {
     const { rows } = await sql`SELECT * FROM orders WHERE id = ${orderId}`;
-    return rows[0]; // Retorna a ordem encontrada
+    if (rows.length === 0) {
+      throw new Error('Ordem não encontrada');
+    }
+    return rows[0];
   } catch (error) {
     throw new Error('Erro ao buscar a ordem no banco de dados');
   }
 };
+
 
 // Rota para buscar uma ordem pelo ID
 app.get('/api/orders/:id', async (req: Request, res: Response) => {
